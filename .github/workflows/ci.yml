@@ -71,8 +71,34 @@ jobs:
             cask=$(basename "$file" .rb)
             brew install --cask "iammrcupp/bench/$cask"
             app=$(sed -n 's/^ *app "\(.*\)"$/\1/p' "$file" | head -1)
+            # bench-suite installs no app of its own, only the others.
+            [ -n "$app" ] || continue
             test -d "/Applications/$app"
             codesign --verify --deep --strict "/Applications/$app"
             spctl -a -vv -t exec "/Applications/$app" 2>&1 | tee "$RUNNER_TEMP/spctl.txt"
             grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl.txt"
           done
+
+      # The whole point of the meta-cask: after it, everything is there.
+      - name: bench-suite brought in the lot
+        run: |
+          brew list --cask | sort | tr '\n' ' '
+          for app in benchhud "benchhud intake" "bench parts"; do test -d "/Applications/$app.app"; done
+          bench-setup --version
+
+      # And the point of all of it: bench-setup sets the two menu-bar apps up
+      # and wires them into the real benchhud app's config. No sudo.
+      - name: bench-setup wires the installed apps together
+        run: |
+          openssl rand -hex 16 > "$RUNNER_TEMP/password"
+          bench-setup services --non-interactive < "$RUNNER_TEMP/password" | tee "$RUNNER_TEMP/services.txt"
+          grep -q "benchhud-intake: set up, on 127.0.0.1:8401, benchhud wired" "$RUNNER_TEMP/services.txt"
+          grep -q "bench-parts: set up, on 127.0.0.1:8402, benchhud wired" "$RUNNER_TEMP/services.txt"
+          bench-setup doctor | tee "$RUNNER_TEMP/doctor.txt"
+          for name in benchhud-intake bench-parts; do
+            grep -E "^  ok +$name: answering on 127\.0\.0\.1:840[12], password set, token set, benchhud wired$" "$RUNNER_TEMP/doctor.txt"
+          done
+          ! grep -q FAIL "$RUNNER_TEMP/doctor.txt"
+          config=$(/Applications/benchhud.app/Contents/MacOS/benchhud config path)
+          grep -q 'base_url = "http://127.0.0.1:8401"' "$config"
+          ! grep -qF "$(cat "$RUNNER_TEMP/password")" "$RUNNER_TEMP/services.txt" "$RUNNER_TEMP/doctor.txt"
