@@ -3,7 +3,7 @@ class BenchSetup < Formula
   homepage "https://github.com/IamMrCupp/bench-suite"
   url "https://github.com/IamMrCupp/bench-suite/archive/refs/tags/v1.5.2.tar.gz"
   sha256 "a618c9c996acacb4e486f16bb02f3181ed1429ef1a1e1bff1cc7bcdd15a78353"
-  license "PolyForm-Small-Business-1.0.0"
+  license "AGPL-3.0-or-later"
 
   depends_on "python@3.13"
 

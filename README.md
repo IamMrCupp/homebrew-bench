@@ -38,4 +38,4 @@ A `bump` workflow runs once a day. When a project has a newer release it points 
 
 ## License
 
-[PolyForm Small Business 1.0.0](LICENSE), like the tools it installs.
+[AGPL-3.0-or-later](LICENSE), like the tools it installs.
