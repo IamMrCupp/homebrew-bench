@@ -1,0 +1,65 @@
+name: CI
+
+# Install everything in the tap on a clean Mac, the way `brew tap` users will.
+# macOS runners bill at 10x, so this runs for changes to the tap itself and
+# once a day, to catch a release that broke a download.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "41 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    runs-on: macos-latest
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@v5
+
+      # Tap this checkout under the name people will use.
+      - name: Tap this checkout
+        run: |
+          tap="$(brew --repository)/Library/Taps/iammrcupp/homebrew-bench"
+          mkdir -p "$(dirname "$tap")"
+          ln -s "$GITHUB_WORKSPACE" "$tap"
+          brew tap | grep -qx "iammrcupp/bench"
+
+      - name: Style
+        run: brew style iammrcupp/bench
+
+      - name: bench-setup installs, passes its test and runs
+        run: |
+          brew install iammrcupp/bench/bench-setup
+          brew test iammrcupp/bench/bench-setup
+          bench-setup --version
+          bench-setup doctor
+          bench-setup services --compose --help >/dev/null
+          test -f "$(brew --prefix bench-setup)/libexec/compose.yaml"
+
+      # Each cask: install it, and check what Gatekeeper will say about the
+      # app on someone else's Mac. A cask whose app isn't notarized fails here.
+      - name: The casks install apps Gatekeeper accepts
+        run: |
+          shopt -s nullglob
+          for file in Casks/*.rb; do
+            cask=$(basename "$file" .rb)
+            brew install --cask "iammrcupp/bench/$cask"
+            app=$(sed -n 's/^ *app "\(.*\)"$/\1/p' "$file" | head -1)
+            test -d "/Applications/$app"
+            codesign --verify --deep --strict "/Applications/$app"
+            spctl -a -vv -t exec "/Applications/$app" 2>&1 | tee "$RUNNER_TEMP/spctl.txt"
+            grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl.txt"
+          done
