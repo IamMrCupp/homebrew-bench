@@ -1,8 +1,8 @@
 class BenchSetup < Formula
   desc "Sets up the repair bench apps and wires them to each other"
   homepage "https://github.com/IamMrCupp/bench-suite"
-  url "https://github.com/IamMrCupp/bench-suite/archive/refs/tags/v1.5.4.tar.gz"
-  sha256 "47ccf42746b23812b740016ff2617e806663213e18a22fff24491c14602a99e3"
+  url "https://github.com/IamMrCupp/bench-suite/archive/refs/tags/v1.5.5.tar.gz"
+  sha256 "dc5dd9826b282170c01f12b0fcbcb199da190b4177c54cd9961963e88cef7bfb"
   license "AGPL-3.0-or-later"
 
   depends_on "python@3.13"
