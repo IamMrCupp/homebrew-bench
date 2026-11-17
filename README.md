@@ -4,11 +4,14 @@ The [Homebrew](https://brew.sh) tap for the repair bench tools: install them on 
 
 ```sh
 brew tap iammrcupp/bench
+brew trust --tap iammrcupp/bench
 brew install --cask bench-suite
 bench-setup
 ```
 
 That's everything: the three apps and `bench-setup`, which then wires them to each other. Each piece also installs on its own.
+
+`brew trust` is Homebrew asking you to say this tap is one you mean to use: without it, it won't load the apps `bench-suite` depends on. Installing a single cask or the formula by name doesn't need it.
 
 ## What's here
 

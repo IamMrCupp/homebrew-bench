@@ -64,9 +64,12 @@ jobs:
 
       # Each cask: install it, and check what Gatekeeper will say about the
       # app on someone else's Mac. A cask whose app isn't notarized fails here.
+      # Homebrew loads a cask's dependencies from a non-official tap only once
+      # the tap is trusted. The README has people run the same line.
       - name: The casks install apps Gatekeeper accepts
         run: |
           shopt -s nullglob
+          brew trust --tap iammrcupp/bench
           for file in Casks/*.rb; do
             cask=$(basename "$file" .rb)
             brew install --cask "iammrcupp/bench/$cask"
