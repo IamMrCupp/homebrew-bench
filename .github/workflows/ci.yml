@@ -11,12 +11,19 @@ on:
   schedule:
     - cron: "41 10 * * *"
   workflow_dispatch:
+  # The bump workflow runs these same checks on its branch before it merges.
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ inputs.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,6 +35,8 @@ jobs:
       HOMEBREW_NO_ANALYTICS: "1"
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
 
       # Tap this checkout under the name people will use.
       - name: Tap this checkout

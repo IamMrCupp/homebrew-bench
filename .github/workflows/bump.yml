@@ -1,0 +1,78 @@
+name: bump
+
+# Once a day: point the formula and the casks at each project's newest
+# release. A change goes on a branch, is installed on a clean Mac by the same
+# checks every pull request gets, and is merged only if they pass.
+
+on:
+  schedule:
+    - cron: "23 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.push.outputs.branch }}
+      pr: ${{ steps.push.outputs.pr }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Look for new releases
+        id: bump
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          changed=$(sh scripts/bump.sh)
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "${changed:-nothing new}"
+          git diff --stat
+
+      - name: Open a pull request
+        id: push
+        if: steps.bump.outputs.changed != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGED: ${{ steps.bump.outputs.changed }}
+        run: |
+          branch="bump/$(echo "$CHANGED" | tr ' ' '_')"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q -b "$branch"
+          git commit -q -am "chore(bump): $CHANGED"
+          git push -q --force origin "$branch"
+          pr=$(gh pr list --head "$branch" --json number -q '.[0].number')
+          if [ -z "$pr" ]; then
+            gh pr create --head "$branch" --title "chore(bump): $CHANGED" \
+              --body "New releases: $CHANGED. Opened by the bump workflow, which installs this branch on a clean Mac and merges it if that passes." >/dev/null
+            pr=$(gh pr list --head "$branch" --json number -q '.[0].number')
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+
+  # A pull request opened with the Actions token doesn't start workflows, so
+  # the checks are called here, on the branch.
+  check:
+    needs: bump
+    if: needs.bump.outputs.branch != ''
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.bump.outputs.branch }}
+
+  merge:
+    needs: [bump, check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr merge "${{ needs.bump.outputs.pr }}" -R "$GITHUB_REPOSITORY" --merge --body "" --delete-branch
