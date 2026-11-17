@@ -46,8 +46,12 @@ jobs:
           ln -s "$GITHUB_WORKSPACE" "$tap"
           brew tap | grep -qx "iammrcupp/bench"
 
+      # The formula and casks, by Homebrew's own rules. Not the whole tap: its
+      # shell rules are bash-only, and scripts/bump.sh is plain sh.
       - name: Style
-        run: brew style iammrcupp/bench
+        run: |
+          shopt -s nullglob
+          brew style Formula/*.rb Casks/*.rb
 
       - name: bench-setup installs, passes its test and runs
         run: |
