@@ -109,6 +109,11 @@ jobs:
         timeout-minutes: 10
         run: |
           openssl rand -hex 16 > "$RUNNER_TEMP/password"
+          # Homebrew quarantines what a cask downloads, and macOS then asks a
+          # person before the app's first launch. Nobody is at this Mac to
+          # answer, so the flag is cleared here, for this step only. Gatekeeper's
+          # verdict on each app was already checked above, quarantine and all.
+          xattr -dr com.apple.quarantine "/Applications/benchhud intake.app" "/Applications/bench parts.app"
           # Watched: if it stalls, say which child process it's waiting on.
           bench-setup services --non-interactive < "$RUNNER_TEMP/password" > "$RUNNER_TEMP/services.txt" 2>&1 &
           pid=$!
