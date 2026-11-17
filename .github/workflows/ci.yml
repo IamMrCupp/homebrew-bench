@@ -109,7 +109,19 @@ jobs:
         timeout-minutes: 10
         run: |
           openssl rand -hex 16 > "$RUNNER_TEMP/password"
-          bench-setup services --non-interactive < "$RUNNER_TEMP/password" | tee "$RUNNER_TEMP/services.txt"
+          # Watched: if it stalls, say which child process it's waiting on.
+          bench-setup services --non-interactive < "$RUNNER_TEMP/password" > "$RUNNER_TEMP/services.txt" 2>&1 &
+          pid=$!
+          for _ in $(seq 240); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+          if kill -0 "$pid" 2>/dev/null; then
+            echo "bench-setup services was still running after 240s. Its processes:"
+            ps -axo pid,ppid,etime,command | grep -i -E "bench|osascript|/open " | grep -v grep || true
+            kill "$pid" || true
+            cat "$RUNNER_TEMP/services.txt"
+            exit 1
+          fi
+          wait "$pid"
+          cat "$RUNNER_TEMP/services.txt"
           grep -q "benchhud-intake: set up, on 127.0.0.1:8401, benchhud wired" "$RUNNER_TEMP/services.txt"
           grep -q "bench-parts: set up, on 127.0.0.1:8402, benchhud wired" "$RUNNER_TEMP/services.txt"
           bench-setup doctor | tee "$RUNNER_TEMP/doctor.txt"
