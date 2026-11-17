@@ -1,6 +1,6 @@
 cask "bench-parts" do
-  version "0.5.1"
-  sha256 "9ddb00292649da46bc9caf8b1c74805c356445555254681c1f820c7978e187b1"
+  version "0.6.0"
+  sha256 "908b87b4a84c84292312753621390827ad70c22893becc7440fae0c0b6d7f1dc"
 
   url "https://github.com/IamMrCupp/bench-parts/releases/download/v#{version}/bench-parts-#{version}.dmg"
   name "bench parts"
