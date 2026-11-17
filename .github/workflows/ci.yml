@@ -64,15 +64,76 @@ jobs:
 
       # Each cask: install it, and check what Gatekeeper will say about the
       # app on someone else's Mac. A cask whose app isn't notarized fails here.
+      # Homebrew loads a cask's dependencies from a non-official tap only once
+      # the tap is trusted. The README has people run the same line.
       - name: The casks install apps Gatekeeper accepts
         run: |
           shopt -s nullglob
+          brew trust --tap iammrcupp/bench
           for file in Casks/*.rb; do
             cask=$(basename "$file" .rb)
             brew install --cask "iammrcupp/bench/$cask"
             app=$(sed -n 's/^ *app "\(.*\)"$/\1/p' "$file" | head -1)
+            # bench-suite installs no app of its own, only the others.
+            [ -n "$app" ] || continue
             test -d "/Applications/$app"
             codesign --verify --deep --strict "/Applications/$app"
             spctl -a -vv -t exec "/Applications/$app" 2>&1 | tee "$RUNNER_TEMP/spctl.txt"
             grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl.txt"
           done
+
+      # The whole point of the meta-cask: after it, everything is there.
+      - name: bench-suite brought in the lot
+        run: |
+          brew list --cask | sort | tr '\n' ' '
+          for app in benchhud "benchhud intake" "bench parts"; do test -d "/Applications/$app.app"; done
+          bench-setup --version
+
+      # And the point of all of it: bench-setup sets the two menu-bar apps up
+      # and wires them into the real benchhud app's config. No sudo.
+      # A command that never returns must fail the job, not hold it for hours.
+      - name: The benchhud app answers a command
+        run: |
+          app=/Applications/benchhud.app/Contents/MacOS/benchhud
+          "$app" --version > "$RUNNER_TEMP/version.txt" 2> "$RUNNER_TEMP/version.err" &
+          pid=$!
+          for _ in $(seq 180); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+          if kill -0 "$pid" 2>/dev/null; then
+            kill "$pid"; echo "benchhud --version was still running after 180s"
+            cat "$RUNNER_TEMP/version.txt" "$RUNNER_TEMP/version.err"; exit 1
+          fi
+          cat "$RUNNER_TEMP/version.txt" "$RUNNER_TEMP/version.err"
+          grep -q "^benchhud [0-9]" "$RUNNER_TEMP/version.txt"
+
+      - name: bench-setup wires the installed apps together
+        timeout-minutes: 10
+        run: |
+          openssl rand -hex 16 > "$RUNNER_TEMP/password"
+          # Homebrew quarantines what a cask downloads, and macOS then asks a
+          # person before the app's first launch. Nobody is at this Mac to
+          # answer, so the flag is cleared here, for this step only. Gatekeeper's
+          # verdict on each app was already checked above, quarantine and all.
+          xattr -dr com.apple.quarantine "/Applications/benchhud intake.app" "/Applications/bench parts.app"
+          # Watched: if it stalls, say which child process it's waiting on.
+          bench-setup services --non-interactive < "$RUNNER_TEMP/password" > "$RUNNER_TEMP/services.txt" 2>&1 &
+          pid=$!
+          for _ in $(seq 240); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+          if kill -0 "$pid" 2>/dev/null; then
+            echo "bench-setup services was still running after 240s. Its processes:"
+            ps -axo pid,ppid,etime,command | grep -i -E "bench|osascript|/open " | grep -v grep || true
+            kill "$pid" || true
+            cat "$RUNNER_TEMP/services.txt"
+            exit 1
+          fi
+          wait "$pid"
+          cat "$RUNNER_TEMP/services.txt"
+          grep -q "benchhud-intake: set up, on 127.0.0.1:8401, benchhud wired" "$RUNNER_TEMP/services.txt"
+          grep -q "bench-parts: set up, on 127.0.0.1:8402, benchhud wired" "$RUNNER_TEMP/services.txt"
+          bench-setup doctor | tee "$RUNNER_TEMP/doctor.txt"
+          for name in benchhud-intake bench-parts; do
+            grep -E "^  ok +$name: answering on 127\.0\.0\.1:840[12], password set, token set, benchhud wired$" "$RUNNER_TEMP/doctor.txt"
+          done
+          ! grep -q FAIL "$RUNNER_TEMP/doctor.txt"
+          config=$(/Applications/benchhud.app/Contents/MacOS/benchhud config path)
+          grep -q 'base_url = "http://127.0.0.1:8401"' "$config"
+          ! grep -qF "$(cat "$RUNNER_TEMP/password")" "$RUNNER_TEMP/services.txt" "$RUNNER_TEMP/doctor.txt"
