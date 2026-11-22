@@ -1,6 +1,6 @@
 cask "benchhud" do
-  version "0.24.0"
-  sha256 "f469cc3ff5bf8de7feaa69cb93190d773d750d97503fc7a12acabbded8f5c1a3"
+  version "0.25.0"
+  sha256 "186040eec70d15bbb3863b8952e54007eb54463f2770c978e3b58941ffe25835"
 
   url "https://github.com/IamMrCupp/benchhud/releases/download/v#{version}/benchhud-#{version}.dmg"
   name "benchhud"
