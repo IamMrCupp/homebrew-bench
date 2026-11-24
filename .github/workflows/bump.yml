@@ -58,8 +58,8 @@ jobs:
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
 
-  # A pull request opened with the Actions token doesn't start workflows, so
-  # the checks are called here, on the branch.
+  # GitHub holds the workflows of a pull request opened with the Actions token
+  # until someone approves them, so the checks are called here, on the branch.
   check:
     needs: bump
     if: needs.bump.outputs.branch != ''
@@ -70,9 +70,27 @@ jobs:
   merge:
     needs: [bump, check]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      # To delete the held run, below.
+      actions: write
     steps:
       - name: Merge
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr merge "${{ needs.bump.outputs.pr }}" -R "$GITHUB_REPOSITORY" --merge --body "" --delete-branch
+
+      # The pull request's own CI run was held for an approval nobody gives,
+      # and ends as a failure with no jobs once the branch is gone (#23). The
+      # bump has merged by now, so trouble here is a warning, not a failed run.
+      - uses: actions/checkout@v5
+
+      - name: Clear the CI run that never started
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.bump.outputs.branch }}
+        run: |
+          sh scripts/clear-unstarted-runs.sh "$BRANCH" ||
+            echo "::warning::The held CI run for $BRANCH is still listed. The bump itself merged."

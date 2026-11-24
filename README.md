@@ -35,6 +35,8 @@ CI installs everything in the tap on a clean `macos` runner: the formula's own t
 
 A `bump` workflow runs once a day. When a project has a newer release it points the formula or cask at it on a branch, installs that branch on a clean Mac with the same checks, and merges it only if they pass. A cask only moves to a release that carries its `.dmg`.
 
+GitHub holds the workflows of a pull request that a workflow opened until someone approves them, so each bump's pull request gets a CI run that never starts. The bump runs the checks itself, and deletes that run once it has merged.
+
 ## License
 
 [AGPL-3.0-or-later](LICENSE), like the tools it installs.

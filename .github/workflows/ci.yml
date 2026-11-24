@@ -27,6 +27,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The bump workflow's helper script, against a stand-in for `gh`. No Mac
+  # needed, so it doesn't wait for one.
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: clear-unstarted-runs.sh does what it says
+        run: sh scripts/test-clear-unstarted-runs.sh
+
   install:
     runs-on: macos-latest
     env:
