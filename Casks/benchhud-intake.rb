@@ -1,6 +1,6 @@
 cask "benchhud-intake" do
-  version "0.10.0"
-  sha256 "90d745e23cdf82aec8340b31a7612fb95e1fbda3c4e9178cb711f5c62d55f684"
+  version "0.10.1"
+  sha256 "2eb634adb343609ae6412119048fcec603d8fc00aa2997d837097a84adfb1a79"
 
   url "https://github.com/IamMrCupp/benchhud-intake/releases/download/v#{version}/benchhud-intake-#{version}.dmg"
   name "benchhud intake"
