@@ -47,7 +47,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -q -b "$branch"
-          git commit -q -am "chore(bump): $CHANGED"
+          # [skip ci]: GitHub holds the workflows of a pull request opened with
+          # the Actions token until someone approves them. Nobody does, and the
+          # held run ends as a failure with no jobs once the bump has merged
+          # (#23). With this in the commit the run is never made. The checks
+          # are called below instead, which the marker doesn't touch.
+          git commit -q -am "chore(bump): $CHANGED" -m "[skip ci]"
           git push -q --force origin "$branch"
           pr=$(gh pr list --head "$branch" --json number -q '.[0].number')
           if [ -z "$pr" ]; then
@@ -58,8 +63,8 @@ jobs:
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
 
-  # A pull request opened with the Actions token doesn't start workflows, so
-  # the checks are called here, on the branch.
+  # The pull request's own CI run is skipped (see the commit above), so the
+  # checks are called here, on the branch.
   check:
     needs: bump
     if: needs.bump.outputs.branch != ''
