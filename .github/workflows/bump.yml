@@ -72,8 +72,35 @@ jobs:
     with:
       ref: ${{ needs.bump.outputs.branch }}
 
+  # The required "commits" check from no-claude-commits.yml never runs on this
+  # pull request either, so the same script runs here and posts that status to
+  # the branch head itself. Without it main's ruleset would hold the merge.
+  commits:
+    needs: bump
+    if: needs.bump.outputs.branch != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.bump.outputs.branch }}
+          fetch-depth: 0
+
+      - name: Check the bump's commits for Claude attribution
+        run: BASE=origin/main HEAD=HEAD .github/scripts/no-claude-commits.sh
+
+      - name: Report the check on the branch head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" \
+            -f state=success -f context=commits \
+            -f description="No Claude attribution (run from the bump workflow)" >/dev/null
+
   merge:
-    needs: [bump, check]
+    needs: [bump, check, commits]
     runs-on: ubuntu-latest
     steps:
       - name: Merge
