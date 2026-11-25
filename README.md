@@ -35,6 +35,15 @@ CI installs everything in the tap on a clean `macos` runner: the formula's own t
 
 A `bump` workflow runs once a day. When a project has a newer release it points the formula or cask at it on a branch, installs that branch on a clean Mac with the same checks, and merges it only if they pass. A cask only moves to a release that carries its `.dmg`.
 
+## Support
+
+If it's earned a spot on your bench and you'd like to throw a coffee my way:
+
+- [Ko-fi](https://ko-fi.com/IamMrCupp)
+- [Buy Me a Coffee](https://buymeacoffee.com/IamMrCupp)
+
+No pressure — it stays open source either way.
+
 ## License
 
 [AGPL-3.0-or-later](LICENSE), like the tools it installs.
